@@ -33,13 +33,24 @@ docker compose version [enter/ctrl+c]
 - `apfel` installed and on `PATH`
 - zsh or Bash
 
-Install apfel with Homebrew:
+## Install
+
+### Homebrew
+
+Install `thepfuck` from its Homebrew tap. Homebrew installs `apfel` as a
+dependency:
+
+```bash
+brew install Stopa/tap/thepfuck
+```
+
+### From source
+
+Install `apfel` first:
 
 ```bash
 brew install apfel
 ```
-
-## Install
 
 From this checkout, build and install `thepfuck` into `~/.local/bin`:
 
@@ -47,17 +58,21 @@ From this checkout, build and install `thepfuck` into `~/.local/bin`:
 make install
 ```
 
-For zsh, persist the binary path and shell function, then reload the shell:
+If `~/.local/bin` is not already on `PATH`, add it to your shell configuration.
+
+### Shell setup
+
+For zsh, persist the shell function, then reload the shell:
 
 ```bash
-printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' 'eval "$(thepfuck --alias)"' >> ~/.zshrc
+printf '%s\n' 'eval "$(thepfuck --alias)"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-For Bash, persist the binary path and shell function, then reload the shell:
+For Bash, persist the shell function, then reload the shell:
 
 ```bash
-printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' 'eval "$(thepfuck --alias --shell bash)"' >> ~/.bashrc
+printf '%s\n' 'eval "$(thepfuck --alias --shell bash)"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
