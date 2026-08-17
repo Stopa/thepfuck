@@ -36,17 +36,17 @@ public enum ShellIntegration {
             : "HISTTIMEFORMAT= builtin history 10 | sed 's/^[[:space:]]*[0-9][0-9]*[[:space:]]*//'"
         return """
         \(declaration) {
-          local thepfuck_command thepfuck_status
-          thepfuck_command="$(\(recentHistory) | command thepfuck --history --shell \(shell.rawValue) --alias-name \(alias) "$@")"
-          thepfuck_status=$?
+          local thepfuck_command thepfuck_status;
+          thepfuck_command="$(\(recentHistory) | command thepfuck --history --shell \(shell.rawValue) --alias-name \(alias) "$@")";
+          thepfuck_status=$?;
           if [ "$thepfuck_status" -ne 0 ]; then
-            return "$thepfuck_status"
-          fi
+            return "$thepfuck_status";
+          fi;
           if [ -z "$thepfuck_command" ]; then
-            return 1
-          fi
-          \(historyInsertion)
-          eval "$thepfuck_command"
+            return 1;
+          fi;
+          \(historyInsertion);
+          eval "$thepfuck_command";
         }
         """ + "\n"
     }

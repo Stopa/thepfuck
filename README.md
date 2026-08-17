@@ -1,13 +1,30 @@
 # thepfuck
 
-**The free AI already on your Mac, wired into your shell.** `thepfuck` recreates
-the familiar thefuck workflow with
-[https://github.com/Arthur-Ficial/apfel](https://github.com/Arthur-Ficial/apfel)
-and Apple's on-device Foundation Models. No cloud inference, API key, or network
-connection is used to generate corrections.
+[thefuck](https://github.com/nvbn/thefuck) is great. I use it all the time 
+and it's one of the first tools I install on a fresh machine. But it's 2026 
+and everything has to be AI. So why not use the LLM that comes bundled 
+with all the macs([apfel](https://github.com/Arthur-Ficial/apfel)) to fix your 
+typos instead?
 
-Run a command, see it fail, type `fuck`, review the suggested correction, and
-press Enter to run it in your current shell.
+Besides, `thefuck` can only get you so far. Yes, it will save your life if 
+your mistake aligns to one of it's patterns, but it can easily miss  pretty 
+simple typos:
+
+```bash
+❯ docker compos version
+docker: unknown command: docker compos
+
+Run 'docker --help' for more information
+❯ fuck
+docker compos version [enter/↑/↓/ctrl+c]
+```
+
+Whereas this tool uses advanced artificial intelligence to get it right
+
+```bash
+❯ pfuck
+docker compose version [enter/ctrl+c]
+```
 
 ## Requirements
 
@@ -58,8 +75,8 @@ Then invoke the fixer:
 fuck
 ```
 
-`thepfuck` shows a candidate such as `git status [enter/y/N]`. Press Enter
-or `y` to execute it in the current shell. Type `n` or `q` to cancel.
+`thepfuck` shows a candidate such as `git status [enter/ctrl+c]`. Press Enter
+to execute it in the current shell, or press Ctrl-C to cancel.
 
 To choose another function name, generate that function in your shell config:
 
@@ -73,7 +90,7 @@ Then invoke it after a failure:
 oops
 ```
 
-To print and execute the suggestion without confirmation, explicitly opt in:
+To execute the suggestion without confirmation, explicitly opt in:
 
 ```bash
 fuck --yes
@@ -82,13 +99,16 @@ fuck --yes
 `--yes` evaluates model-generated shell code without review. It is intentionally
 not the default.
 
-To diagnose a specific command outside shell history, ask for a correction
-directly. The executable prints the accepted correction; only the generated
-shell function evaluates it in the parent shell.
+To diagnose and retry a specific command outside shell history, invoke the
+executable directly. Press Enter to run its suggested correction:
 
 ```bash
 thepfuck --command "git stats"
 ```
+
+Direct mode runs the correction in a child shell. Use the generated `fuck`
+function when changes such as `cd` or exported variables must persist in the
+current interactive shell.
 
 Use a shorter capture deadline for commands that are expensive to retry:
 
@@ -129,6 +149,8 @@ mistaken for a command to execute.
 - Shell aliases and functions may not exist in the child login shell used for
   error capture. The model still sees the command and the resulting diagnostic,
   but the re-run may differ from the original invocation.
+- Direct `--command` corrections run in a child shell, so directory and
+  environment changes do not persist after the command exits.
 - This release supports zsh and Bash. Fish is rejected with a clear error rather
   than claiming incomplete compatibility.
 - apfel's model availability and safety guardrails apply. If apfel refuses or is
@@ -149,5 +171,5 @@ make build
 ```
 
 The implementation and test rationale are recorded in
-[research.md](research.md), [plan.md](plan.md), and
-[implementation-log.md](implementation-log.md).
+[research.md](docs/research.md), [plan.md](docs/plan.md), and
+[implementation-log.md](docs/implementation-log.md).

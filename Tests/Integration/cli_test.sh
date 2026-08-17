@@ -36,9 +36,16 @@ OUTPUT=$(PATH="$TEST_DIR/bin:/usr/bin:/bin" \
     APFEL_STUB_CALLED="$CALLED_FILE" \
     APFEL_STUB_RESPONSE="printf 'fixed\\n'" \
     "$BINARY" --command "$COMMAND" --shell zsh --yes 2>"$ERR_FILE")
-[[ "$OUTPUT" == "printf 'fixed\\n'" ]]
+if [[ "$OUTPUT" != "fixed" ]]; then
+    printf 'FAIL direct --yes did not execute the accepted correction\n' >&2
+    exit 1
+fi
 if grep -Fxq "printf 'fixed\\n'" "$ERR_FILE"; then
     printf 'FAIL explicit --command duplicated the correction on stderr\n' >&2
+    exit 1
+fi
+if grep -Fq 'finding a fix for:' "$ERR_FILE"; then
+    printf 'FAIL CLI printed the legacy finding-a-fix status\n' >&2
     exit 1
 fi
 [[ -f "$CALLED_FILE" ]]
@@ -47,6 +54,54 @@ grep -Fq 'boom ü' "$INPUT_FILE"
 EXPECTED_ARGS=$(printf '%s\n' '-q' '--code' '-s')
 ACTUAL_ARGS=$(sed -n '1,3p' "$ARGS_FILE")
 [[ "$ACTUAL_ARGS" == "$EXPECTED_ARGS" ]]
+
+set +e
+DIRECT_FAILURE_OUTPUT=$(PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    APFEL_STUB_ARGS="$ARGS_FILE" \
+    APFEL_STUB_INPUT="$INPUT_FILE" \
+    APFEL_STUB_CALLED="$CALLED_FILE" \
+    APFEL_STUB_RESPONSE="exit 7" \
+    "$BINARY" --command false --shell zsh --yes 2>"$ERR_FILE")
+DIRECT_FAILURE_STATUS=$?
+set -e
+[[ $DIRECT_FAILURE_STATUS -eq 7 ]]
+[[ -z "$DIRECT_FAILURE_OUTPUT" ]]
+
+ENTER_MARKER="$TEST_DIR/enter-ran"
+COLOR_TRANSCRIPT="$TEST_DIR/color-transcript"
+env -u NO_COLOR \
+    PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    APFEL_STUB_ARGS="$ARGS_FILE" \
+    APFEL_STUB_INPUT="$INPUT_FILE" \
+    APFEL_STUB_CALLED="$CALLED_FILE" \
+    APFEL_STUB_RESPONSE="touch '$ENTER_MARKER'" \
+    /usr/bin/expect Tests/Integration/enter_to_run.exp "$BINARY" false "$COLOR_TRANSCRIPT"
+[[ -f "$ENTER_MARKER" ]]
+ESCAPE=$'\033'
+if ! grep -Fq "${ESCAPE}[32menter${ESCAPE}[0m" "$COLOR_TRANSCRIPT"; then
+    printf 'FAIL enter was not green in the interactive prompt\n' >&2
+    exit 1
+fi
+if ! grep -Fq "${ESCAPE}[31mctrl+c${ESCAPE}[0m" "$COLOR_TRANSCRIPT"; then
+    printf 'FAIL ctrl+c was not red in the interactive prompt\n' >&2
+    exit 1
+fi
+
+PLAIN_MARKER="$TEST_DIR/plain-enter-ran"
+PLAIN_TRANSCRIPT="$TEST_DIR/plain-transcript"
+PATH="$TEST_DIR/bin:/usr/bin:/bin" \
+    NO_COLOR=1 \
+    APFEL_STUB_ARGS="$ARGS_FILE" \
+    APFEL_STUB_INPUT="$INPUT_FILE" \
+    APFEL_STUB_CALLED="$CALLED_FILE" \
+    APFEL_STUB_RESPONSE="touch '$PLAIN_MARKER'" \
+    /usr/bin/expect Tests/Integration/enter_to_run.exp "$BINARY" false "$PLAIN_TRANSCRIPT"
+[[ -f "$PLAIN_MARKER" ]]
+grep -Fq '[enter/ctrl+c]' "$PLAIN_TRANSCRIPT"
+if grep -Fq "$ESCAPE" "$PLAIN_TRANSCRIPT"; then
+    printf 'FAIL NO_COLOR confirmation contained ANSI escapes\n' >&2
+    exit 1
+fi
 
 ZSH_SOURCE="$TEST_DIR/zsh-source"
 SHELL=/bin/zsh "$BINARY" --alias > "$ZSH_SOURCE"
@@ -57,6 +112,20 @@ BASH_SOURCE_FILE="$TEST_DIR/bash-source"
 SHELL=/bin/bash "$BINARY" --alias FUCK --shell bash > "$BASH_SOURCE_FILE"
 /bin/bash -n "$BASH_SOURCE_FILE"
 grep -Fq 'function FUCK() {' "$BASH_SOURCE_FILE"
+
+ZSH_UNQUOTED_ALIAS=$(
+    PATH="$BINARY_DIR:/usr/bin:/bin" \
+        SHELL=/bin/zsh \
+        /bin/zsh -f -c 'eval $(thepfuck --alias pfuck); whence -w pfuck' 2>"$ERR_FILE"
+)
+[[ "$ZSH_UNQUOTED_ALIAS" == "pfuck: function" ]]
+
+BASH_UNQUOTED_ALIAS=$(
+    PATH="$BINARY_DIR:/usr/bin:/bin" \
+        SHELL=/bin/bash \
+        /bin/bash --noprofile --norc -c 'eval $(thepfuck --alias pfuck --shell bash); type -t pfuck' 2>"$ERR_FILE"
+)
+[[ "$BASH_UNQUOTED_ALIAS" == "function" ]]
 
 rm -f "$CALLED_FILE"
 FUNCTION_TRANSCRIPT=$(

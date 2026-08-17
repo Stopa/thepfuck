@@ -46,7 +46,6 @@ struct ThepfuckMain {
             throw CLIOptionsError.noCommandSource
         }
 
-        writeStderr("thepfuck: finding a fix for: \(command)\n")
         let service = CorrectionService(
             capturer: ShellCommandCapturer(),
             suggester: ApfelClient()
@@ -62,32 +61,75 @@ struct ThepfuckMain {
             guard try confirm(correction) else {
                 throw InteractionError.cancelled
             }
-        } else if options.readHistory {
-            // The generated shell function captures stdout in order to eval it,
-            // so mirror the accepted command to stderr only for that path.
-            writeStderr("\(correction)\n")
         }
-        print(correction)
+
+        if options.readHistory {
+            // The generated shell function captures stdout in order to eval it,
+            // so mirror an auto-accepted command to stderr for visibility.
+            if options.yes {
+                writeStderr("\(correction)\n")
+            }
+            print(correction)
+            return
+        }
+
+        Darwin.exit(try execute(correction, shellPath: options.shellPath))
     }
 
     private static func confirm(_ correction: String) throws -> Bool {
-        writeStderr("\(correction) [enter/y/N] ")
+        let colorsEnabled = ProcessInfo.processInfo.environment["NO_COLOR"] == nil
+            && Darwin.isatty(FileHandle.standardError.fileDescriptor) == 1
+        let enter = colorsEnabled ? "\u{001B}[32menter\u{001B}[0m" : "enter"
+        let cancel = colorsEnabled ? "\u{001B}[31mctrl+c\u{001B}[0m" : "ctrl+c"
+        writeStderr("\(correction) [\(enter)/\(cancel)] ")
         guard let tty = FileHandle(forReadingAtPath: "/dev/tty") else {
             writeStderr("\n")
             throw InteractionError.noTTY
         }
         defer { try? tty.close() }
-        let data = try tty.read(upToCount: 64) ?? Data()
-        let answer = String(decoding: data, as: UTF8.self)
+        var bytes: [UInt8] = []
+        while bytes.count < 64 {
+            var byte: UInt8 = 0
+            let count = Darwin.read(tty.fileDescriptor, &byte, 1)
+            guard count >= 0 else {
+                throw InteractionError.ttyReadFailed(String(cString: strerror(errno)))
+            }
+            if count == 0 || byte == 10 || byte == 13 {
+                break
+            }
+            bytes.append(byte)
+        }
+        let answer = String(decoding: bytes, as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
-        return answer.isEmpty || answer == "y" || answer == "yes"
+        return answer.isEmpty
+    }
+
+    private static func execute(_ correction: String, shellPath: String) throws -> Int32 {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: shellPath)
+        process.arguments = ["-lc", correction]
+        process.standardInput = FileHandle.standardInput
+        process.standardOutput = FileHandle.standardOutput
+        process.standardError = FileHandle.standardError
+        do {
+            try process.run()
+        } catch {
+            throw InteractionError.executionFailed(error.localizedDescription)
+        }
+        process.waitUntilExit()
+        if process.terminationReason == .uncaughtSignal {
+            return 128 + process.terminationStatus
+        }
+        return process.terminationStatus
     }
 }
 
 private enum InteractionError: Error {
     case noTTY
+    case ttyReadFailed(String)
     case cancelled
+    case executionFailed(String)
 }
 
 private let helpText = """
@@ -100,7 +142,7 @@ SETUP
 USAGE
   fuck                                    Suggest, confirm, and run a correction
   fuck --yes                              Run the suggestion without confirmation
-  thepfuck --command <text>                Correct an explicit command
+  thepfuck --command <text>                Correct and run an explicit command
 
 OPTIONS
   --alias [name]                          Print shell integration
@@ -165,8 +207,12 @@ private func message(for error: Error) -> String {
         return "could not capture subprocess output: \(detail)"
     case InteractionError.noTTY:
         return "confirmation requires an interactive terminal; inspect the suggestion there or pass --yes explicitly"
+    case InteractionError.ttyReadFailed(let detail):
+        return "could not read confirmation from the terminal: \(detail)"
     case InteractionError.cancelled:
         return "aborted"
+    case InteractionError.executionFailed(let detail):
+        return "could not execute the correction: \(detail)"
     default:
         return String(describing: error)
     }

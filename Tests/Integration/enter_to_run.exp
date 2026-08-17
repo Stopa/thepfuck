@@ -1,0 +1,35 @@
+#!/usr/bin/expect -f
+
+set timeout 10
+set binary [lindex $argv 0]
+set failed_command [lindex $argv 1]
+if {$argc >= 3} {
+    log_file -noappend [lindex $argv 2]
+}
+
+spawn $binary --command $failed_command --shell zsh
+expect {
+    -re {enter.*ctrl\+c} {
+        send "\r"
+    }
+    timeout {
+        puts stderr "FAIL confirmation prompt did not appear"
+        exit 1
+    }
+    eof {
+        puts stderr "FAIL thepfuck exited before confirmation"
+        exit 1
+    }
+}
+
+expect {
+    eof {}
+    timeout {
+        puts stderr "FAIL thepfuck did not exit after Enter"
+        close
+        wait
+        exit 1
+    }
+}
+set process_status [wait]
+exit [lindex $process_status 3]
