@@ -22,6 +22,8 @@ public enum ShellIntegrationError: Error, Equatable, Sendable {
 }
 
 public enum ShellIntegration {
+    public static let capturedAliasesEnvironmentVariable = "THEPFUCK_CAPTURED_ALIASES"
+
     public static func render(shell: ShellKind, alias: String) throws -> String {
         guard isValidAlias(alias) else {
             throw ShellIntegrationError.invalidAlias(alias)
@@ -34,10 +36,12 @@ public enum ShellIntegration {
         let recentHistory = shell == .zsh
             ? "fc -ln -10"
             : "HISTTIMEFORMAT= builtin history 10 | sed 's/^[[:space:]]*[0-9][0-9]*[[:space:]]*//'"
+        let capturedAliases = "alias"
         return """
         \(declaration) {
-          local thepfuck_command thepfuck_status;
-          thepfuck_command="$(\(recentHistory) | command thepfuck --history --shell \(shell.rawValue) --alias-name \(alias) "$@")";
+          local thepfuck_aliases thepfuck_command thepfuck_status;
+          thepfuck_aliases="$(\(capturedAliases))";
+          thepfuck_command="$(\(recentHistory) | \(capturedAliasesEnvironmentVariable)="$thepfuck_aliases" command thepfuck --history --shell \(shell.rawValue) --alias-name \(alias) "$@")";
           thepfuck_status=$?;
           if [ "$thepfuck_status" -ne 0 ]; then
             return "$thepfuck_status";

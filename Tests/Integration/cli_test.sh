@@ -136,10 +136,11 @@ FUNCTION_TRANSCRIPT=$(
         APFEL_STUB_CALLED="$CALLED_FILE" \
         APFEL_STUB_RESPONSE="printf 'function-ran\\n'" \
         /bin/zsh -f -i -c \
-        'eval "$(thepfuck --alias)"; print -s -- "ls /definitely/thepfuck-missing"; fuck --yes'
+        'alias tpz=ls; eval "$(thepfuck --alias)"; print -s -- "tpz /definitely/thepfuck-missing"; fuck --yes'
 )
 [[ -f "$CALLED_FILE" ]]
-grep -Fq 'ls /definitely/thepfuck-missing' "$INPUT_FILE"
+grep -Fq '"failed_command":"ls /definitely/thepfuck-missing"' "$INPUT_FILE"
+grep -Fq 'No such file or directory' "$INPUT_FILE"
 [[ "$FUNCTION_TRANSCRIPT" == *"function-ran"* ]]
 
 rm -f "$CALLED_FILE"
@@ -151,10 +152,11 @@ BASH_FUNCTION_TRANSCRIPT=$(
         APFEL_STUB_CALLED="$CALLED_FILE" \
         APFEL_STUB_RESPONSE="printf 'bash-function-ran\\n'" \
         /bin/bash --noprofile --norc -i -c \
-        'eval "$(thepfuck --alias --shell bash)"; history -s "ls /definitely/thepfuck-bash-missing"; fuck --yes'
+        'alias tpb=ls; eval "$(thepfuck --alias --shell bash)"; history -s "tpb /definitely/thepfuck-bash-missing"; fuck --yes'
 )
 [[ -f "$CALLED_FILE" ]]
-grep -Fq 'ls /definitely/thepfuck-bash-missing' "$INPUT_FILE"
+grep -Fq '"failed_command":"ls /definitely/thepfuck-bash-missing"' "$INPUT_FILE"
+grep -Fq 'No such file or directory' "$INPUT_FILE"
 [[ "$BASH_FUNCTION_TRANSCRIPT" == *"bash-function-ran"* ]]
 
 set +e

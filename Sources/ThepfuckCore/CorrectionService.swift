@@ -44,10 +44,16 @@ public struct CorrectionService: Sendable {
         command: String,
         shell: ShellKind,
         shellPath: String,
+        aliasDefinitions: String? = nil,
         commandTimeout: TimeInterval
     ) throws -> String {
-        let capture = try capturer.capture(
+        let expandedCommand = AliasExpander.expand(
             command: command,
+            definitions: aliasDefinitions ?? "",
+            shell: shell
+        )
+        let capture = try capturer.capture(
+            command: expandedCommand,
             shellPath: shellPath,
             timeout: commandTimeout
         )
@@ -55,7 +61,7 @@ public struct CorrectionService: Sendable {
             throw CorrectionServiceError.commandTimedOut
         }
         let request = try CorrectionRequest.prompt(
-            command: command,
+            command: expandedCommand,
             output: capture.output,
             shell: shell.rawValue
         )

@@ -1,6 +1,7 @@
 import Foundation
 
 let allTests = historySelectorTests()
+    + aliasExpanderTests()
     + correctionRequestTests()
     + processRunnerTests()
     + shellIntegrationTests()

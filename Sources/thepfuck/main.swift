@@ -54,6 +54,11 @@ struct ThepfuckMain {
             command: command,
             shell: options.shell,
             shellPath: options.shellPath,
+            aliasDefinitions: options.readHistory
+                ? ProcessInfo.processInfo.environment[
+                    ShellIntegration.capturedAliasesEnvironmentVariable
+                ]
+                : nil,
             commandTimeout: options.commandTimeout
         )
 

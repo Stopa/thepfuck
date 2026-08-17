@@ -11,10 +11,11 @@ public struct ShellCommandCapturer: CommandCapturing, Sendable {
         // Keep a noisy failed command from filling disk before the time limit.
         // `ulimit -f` is supported by both zsh and Bash; 256 blocks keeps enough
         // diagnostic tail for the prompt while bounding the temporary file.
-        let boundedCommand = "ulimit -f 256 || exit $?; \(command)"
+        // Pass the command as $1 rather than interpolating it into this script.
+        let captureScript = "ulimit -f 256 || exit $?\neval \"$1\""
         let result = try ProcessRunner.run(.init(
             executableURL: URL(fileURLWithPath: shellPath),
-            arguments: ["-lc", boundedCommand],
+            arguments: ["-lc", captureScript, "thepfuck-capture", command],
             currentDirectoryURL: URL(fileURLWithPath: FileManager.default.currentDirectoryPath),
             combineOutput: true,
             timeout: timeout

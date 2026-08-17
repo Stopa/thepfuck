@@ -13,9 +13,10 @@ func correctionServiceTests() -> [TestCase] {
             let service = CorrectionService(capturer: capturer, suggester: suggester)
 
             let correction = try service.correct(
-                command: "git stats",
+                command: "g stats",
                 shell: .zsh,
                 shellPath: "/bin/zsh",
+                aliasDefinitions: "g=git",
                 commandTimeout: 3
             )
 
@@ -81,8 +82,16 @@ private final class MockCommandCapturer: CommandCapturing, @unchecked Sendable {
         self.result = result
     }
 
-    func capture(command: String, shellPath: String, timeout: TimeInterval) throws -> CommandCapture {
-        calls.append(.init(command: command, shellPath: shellPath, timeout: timeout))
+    func capture(
+        command: String,
+        shellPath: String,
+        timeout: TimeInterval
+    ) throws -> CommandCapture {
+        calls.append(.init(
+            command: command,
+            shellPath: shellPath,
+            timeout: timeout
+        ))
         return result
     }
 }
